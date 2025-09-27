@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - develop
+      - feature/**
 
 jobs:
   build-and-push:
@@ -16,12 +18,26 @@ jobs:
 
       # Step 2: Log in to Docker Hub using GitHub Secrets
       - name: Log in to Docker Hub
-        run: echo "${{ secrets.REGISTRY_PASS }}" | docker login -u "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+        run: echo "${{ secrets.DOCKER_PASS }}" | docker login -u "${{ secrets.REGiSTRY_USERNAME }}" --password-stdin
 
-      # Step 3: Build Docker image
+      # Step 3: Set image tags
+      - name: Set image tags
+        id: vars
+        run: |
+          BRANCH_TAG=$(echo "${GITHUB_REF##*/}" | tr / -)
+          COMMIT_TAG=${GITHUB_SHA::7}
+          echo "BRANCH_TAG=$BRANCH_TAG" >> $GITHUB_ENV
+          echo "COMMIT_TAG=$COMMIT_TAG" >> $GITHUB_ENV
+
+      # Step 4: Build Docker image
       - name: Build Docker image
-        run: docker build -t your-dockerhub-username/your-image-name:latest .
+        run: docker build -t ${{ secrets.REGISTRY_USERNAME }}/your-image-name:latest \
+                          -t ${{ secrets.REGISTRY_USERNAME }}/your-image-name:${{ env.BRANCH_TAG }} \
+                          -t ${{ secrets.REGISTRY_USERNAME }}/your-image-name:${{ env.COMMIT_TAG }} .
 
-      # Step 4: Push Docker image to Docker Hub
+      # Step 5: Push Docker image
       - name: Push Docker image
-        run: docker push your-dockerhub-username/your-image-name:latest
+        run: |
+          docker push ${{ secrets.REGISTRY_USERNAME }}/your-image-name:latest
+          docker push ${{ secrets.REGISTRY_USERNAME }}/your-image-name:${{ env.BRANCH_TAG }}
+          docker push ${{ secrets.REGISTRY_USERNAME }}/your-image-name:${{ env.COMMIT_TAG }}
